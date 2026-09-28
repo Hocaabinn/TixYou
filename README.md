@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎟️ TixYou — *TIXORA*
+# 🎟️ TixYou — *App-Tiket*
 
 **Smart Events. Trusted Tickets.**
 
