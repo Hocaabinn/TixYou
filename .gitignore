@@ -1,0 +1,29 @@
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Env / secrets (PRD §27: private key tidak boleh di-commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ---- Go build artifacts ----
+backend/server
+backend/bin/
+backend/tmp/
+*.exe
+*.test
+*.out
+
+# ---- Node / Expo (mobile) ----
+node_modules/
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+
+# ---- IDE ----
+.vscode/
+.idea/
