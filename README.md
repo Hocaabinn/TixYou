@@ -19,10 +19,10 @@ Platform event discovery & ticketing:
 
 ## 📖 Overview
 
-**TixYou (TIXORA)** adalah platform event discovery dan ticketing untuk menemukan event,
+**TixYou** adalah platform event discovery dan ticketing untuk menemukan event,
 membeli tiket, menyimpan e-ticket, check-in, transfer, dan resale.
 
-TIXORA menggabungkan tiga lapisan sesuai [PRD v1.1](./TixYou_PRD.md):
+TIXYOU menggabungkan tiga lapisan sesuai [PRD v1.1](./TixYou_PRD.md):
 
 | Layer | Teknologi | Peran |
 |-------|-----------|-------|
