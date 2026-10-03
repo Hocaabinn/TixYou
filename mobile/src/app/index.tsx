@@ -1,5 +1,15 @@
-import { Redirect } from 'expo-router';
+import { useEffect } from 'react';
+import { useRouter, useRootNavigationState } from 'expo-router';
 
 export default function Index() {
-  return <Redirect href="/login/welcome" />;
+  const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
+
+  useEffect(() => {
+    if (!rootNavigationState?.key) return;
+    router.replace('/login/welcome');
+  }, [rootNavigationState?.key, router]);
+
+  return null;
 }
+
