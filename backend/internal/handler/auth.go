@@ -17,6 +17,14 @@ type SignUpRequest struct {
 	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
 	Role     string `json:"role"`
+
+	// Organizer-only fields
+	OrganizationName string `json:"organization_name"`
+	OrganizerType    string `json:"organizer_type"`
+	Phone            string `json:"phone"`
+	City             string `json:"city"`
+	PrimaryCategory  string `json:"primary_category"`
+	Website          string `json:"website"`
 }
 
 type UserProfile struct {
@@ -68,6 +76,14 @@ func SignUpHandler(c *gin.Context) {
 
 	if req.Role == "" {
 		req.Role = "attendee"
+	}
+
+	if req.Role == "organizer" && (req.OrganizationName == "" || req.Phone == "" || req.City == "") {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{
+			"success": false,
+			"message": "Data organizer belum lengkap (organization_name, phone, city).",
+		})
+		return
 	}
 
 	newUser := UserProfile{
