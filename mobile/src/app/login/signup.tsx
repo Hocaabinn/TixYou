@@ -3,8 +3,10 @@ import { useRouter } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -12,7 +14,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableWithoutFeedback,
   useColorScheme,
   useWindowDimensions,
   View,
@@ -22,7 +23,50 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL } from '@/services/api';
 
 type UserRole = 'attendee' | 'organizer';
-type FocusField = 'fullName' | 'email' | 'password' | 'confirmPassword' | null;
+type FocusField =
+  | 'fullName'
+  | 'email'
+  | 'password'
+  | 'confirmPassword'
+  | 'orgName'
+  | 'phone'
+  | 'city'
+  | 'website'
+  | 'otherCategory'
+  | null;
+
+const ROLE_OPTIONS = [
+  { label: 'Attendee', value: 'attendee', icon: 'person-outline', desc: 'Discover events and purchase tickets' },
+  { label: 'Organizer', value: 'organizer', icon: 'business-outline', desc: 'Create and manage events & sales' },
+];
+
+const ORGANIZER_TYPES = [
+  { label: 'Individual', value: 'Individual', icon: 'person-circle-outline' },
+  { label: 'Company / Business', value: 'Company', icon: 'briefcase-outline' },
+  { label: 'Community', value: 'Community', icon: 'people-outline' },
+  { label: 'Campus / School', value: 'Campus', icon: 'school-outline' },
+];
+
+const EVENT_CATEGORIES = [
+  { label: 'Music & Concerts', value: 'Music', icon: 'musical-notes-outline' },
+  { label: 'Conference & Tech', value: 'Conference', icon: 'easel-outline' },
+  { label: 'Sports & Fitness', value: 'Sports', icon: 'fitness-outline' },
+  { label: 'Arts & Culture', value: 'Arts', icon: 'color-palette-outline' },
+  { label: 'Education & Workshop', value: 'Education', icon: 'book-outline' },
+  { label: 'Community & Social', value: 'Community', icon: 'planet-outline' },
+  { label: 'Other Category', value: 'Other', icon: 'grid-outline' },
+];
+
+// TixYou Brand Logo Image
+const TixYouLogo = () => (
+  <View style={styles.logoBadge}>
+    <Image
+      source={require('@/img/Logo.png')}
+      style={styles.logoImage}
+      resizeMode="contain"
+    />
+  </View>
+);
 
 export default function SignUpScreen() {
   const router = useRouter();
@@ -37,11 +81,26 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Focus state for field border highlighting
   const [focusedInput, setFocusedInput] = useState<FocusField>(null);
+
+  // Organizer-only fields
+  const [orgName, setOrgName] = useState('');
+  const [orgType, setOrgType] = useState('Individual');
+  const [phone, setPhone] = useState('');
+  const [city, setCity] = useState('');
+  const [category, setCategory] = useState('Music');
+  const [website, setWebsite] = useState('');
+  const [otherCategory, setOtherCategory] = useState('');
+
+  // Dropdown Modal States
+  const [activeDropdown, setActiveDropdown] = useState<'role' | 'orgType' | 'category' | null>(null);
+
+  const isOrganizer = role === 'organizer';
 
   const handleSignUp = async () => {
     Keyboard.dismiss();
@@ -61,6 +120,21 @@ export default function SignUpScreen() {
       return;
     }
 
+    if (isOrganizer) {
+      if (!orgName.trim() || !phone.trim() || !city.trim()) {
+        Alert.alert('Attention', 'Please complete organization name, phone, and city.');
+        return;
+      }
+      if (!/^\+?[0-9]{8,15}$/.test(phone.replace(/[\s-]/g, ''))) {
+        Alert.alert('Invalid Phone', 'Please enter a valid phone / WhatsApp number.');
+        return;
+      }
+      if (category === 'Other' && !otherCategory.trim()) {
+        Alert.alert('Attention', 'Please specify your event category.');
+        return;
+      }
+    }
+
     if (!agreeTerms) {
       Alert.alert('Terms of Service', 'You must agree to the TixYou Terms of Service to continue.');
       return;
@@ -68,10 +142,21 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
+      const payload: Record<string, string> = { name: fullName, email, password, role };
+      if (isOrganizer) {
+        Object.assign(payload, {
+          organization_name: orgName.trim(),
+          organizer_type: orgType,
+          phone: phone.trim(),
+          city: city.trim(),
+          primary_category: category === 'Other' ? otherCategory.trim() : category,
+          website: website.trim(),
+        });
+      }
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: fullName, email, password, role }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -93,15 +178,17 @@ export default function SignUpScreen() {
     }
   };
 
+  // TixYou Brand Color Palette (Elegant White & Indigo Theme)
   const colors = {
-    bg: isDark ? '#0B0F19' : '#F8FAFC',
+    bg: isDark ? '#0B0F19' : '#FFFFFF',
     cardBg: isDark ? '#141C2E' : '#FFFFFF',
     textPrimary: isDark ? '#F8FAFC' : '#0F172A',
     textSecondary: isDark ? '#94A3B8' : '#64748B',
     border: isDark ? '#1E293B' : '#E2E8F0',
-    primary: '#4F46E5',
-    primaryLight: isDark ? 'rgba(79, 70, 229, 0.15)' : '#EEF2FF',
-    inputBg: isDark ? '#0F172A' : '#F1F5F9',
+    primary: '#4F46E5', // TixYou Signature Indigo
+    primaryLight: isDark ? 'rgba(79, 70, 229, 0.15)' : '#F0F5FF',
+    primaryText: '#FFFFFF',
+    inputBg: isDark ? '#0F172A' : '#FAFAFC',
     inputBgFocus: isDark ? '#1E293B' : '#FFFFFF',
     inputBorderFocus: '#4F46E5',
     placeholder: isDark ? '#64748B' : '#94A3B8',
@@ -113,13 +200,87 @@ export default function SignUpScreen() {
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
+  // Custom Dropdown Trigger Component (Shadcn style)
+  const renderDropdownTrigger = (
+    label: string,
+    valueDisplay: string,
+    icon: keyof typeof Ionicons.glyphMap,
+    onPress: () => void
+  ) => (
+    <View style={styles.inputGroup}>
+      <Text style={[styles.label, { color: colors.textPrimary }]}>{label}</Text>
+      <Pressable
+        style={({ pressed }) => [
+          styles.dropdownTrigger,
+          {
+            backgroundColor: colors.inputBg,
+            borderColor: colors.border,
+            height: isSmallScreen ? 46 : 50,
+          },
+          pressed && { opacity: 0.8 },
+        ]}
+        onPress={onPress}
+      >
+        <View style={styles.dropdownLeft}>
+          <Ionicons name={icon} size={18} color={colors.primary} style={{ marginRight: 10 }} />
+          <Text style={[styles.dropdownValueText, { color: colors.textPrimary }]}>{valueDisplay}</Text>
+        </View>
+        <Ionicons name="chevron-down" size={18} color={colors.textSecondary} />
+      </Pressable>
+    </View>
+  );
+
+  const renderInput = (
+    key: Exclude<FocusField, null>,
+    label: string,
+    icon: keyof typeof Ionicons.glyphMap,
+    placeholder: string,
+    value: string,
+    onChange: (v: string) => void,
+    extra: React.ComponentProps<typeof TextInput> = {},
+  ) => (
+    <View style={styles.inputGroup}>
+      <Text style={[styles.label, { color: colors.textPrimary }]}>{label}</Text>
+      <View
+        style={[
+          styles.inputContainer,
+          {
+            backgroundColor: focusedInput === key ? colors.inputBgFocus : colors.inputBg,
+            borderColor: focusedInput === key ? colors.inputBorderFocus : colors.border,
+            height: isSmallScreen ? 46 : 50,
+          },
+        ]}
+      >
+        <Ionicons
+          name={icon}
+          size={18}
+          color={focusedInput === key ? colors.primary : colors.placeholder}
+          style={styles.inputIcon}
+        />
+        <TextInput
+          style={[styles.input, { color: colors.textPrimary }]}
+          placeholder={placeholder}
+          placeholderTextColor={colors.placeholder}
+          value={value}
+          onChangeText={onChange}
+          onFocus={() => setFocusedInput(key)}
+          onBlur={() => setFocusedInput(null)}
+          {...extra}
+        />
+      </View>
+    </View>
+  );
+
+  const getRoleLabel = () => ROLE_OPTIONS.find((r) => r.value === role)?.label || 'Attendee';
+  const getOrgTypeLabel = () => ORGANIZER_TYPES.find((o) => o.value === orgType)?.label || 'Individual';
+  const getCategoryLabel = () => EVENT_CATEGORIES.find((c) => c.value === category)?.label || 'Music & Concerts';
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.bg}
       />
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
@@ -128,401 +289,423 @@ export default function SignUpScreen() {
             contentContainerStyle={[
               styles.scrollContent,
               {
-                paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 16 : 12) + 8,
-                paddingBottom: Math.max(insets.bottom, 16) + 16,
+                paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 16 : 12) + 12,
+                paddingBottom: Math.max(insets.bottom, 16) + 24,
               },
             ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            scrollEventThrottle={16}
+            nestedScrollEnabled
           >
-            <View>
-              {/* Top Navigation Bar */}
-              <View style={[styles.topBar, { marginBottom: isSmallScreen ? 16 : 24 }]}>
+            <View style={styles.centerWrapper}>
+              {/* Back Button */}
+              <View style={styles.topNav}>
                 <Pressable
                   style={({ pressed }) => [
                     styles.backButton,
-                    {
-                      backgroundColor: colors.cardBg,
-                      borderColor: colors.border,
-                    },
-                    pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
+                    { borderColor: colors.border, backgroundColor: colors.cardBg },
+                    pressed && { opacity: 0.7 },
                   ]}
                   onPress={() => router.back()}
                 >
-                  <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+                  <Ionicons name="arrow-back" size={18} color={colors.textPrimary} />
                 </Pressable>
-
-                {/* Brand Indicator */}
-                <View style={styles.brandHeader}>
-                  <View style={[styles.brandBadge, { backgroundColor: colors.primary }]}>
-                    <Ionicons name="ticket" size={14} color="#FFFFFF" />
-                  </View>
-                  <Text style={[styles.brandText, { color: colors.textPrimary }]}>
-                    Tix<Text style={{ color: colors.primary }}>You</Text>
-                  </Text>
-                </View>
               </View>
 
-              {/* Header Section */}
-              <View style={[styles.headerSection, { marginBottom: isSmallScreen ? 16 : 24 }]}>
-                <Text style={[styles.title, { color: colors.textPrimary, fontSize: isSmallScreen ? 24 : 28 }]}>
-                  Create Account ✨
-                </Text>
-                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                  Join TixYou to discover events, buy tickets, and access exclusive passes.
-                </Text>
-              </View>
-
-              {/* Role Segmented Selector */}
-              <View style={[styles.roleContainer, { marginBottom: isSmallScreen ? 14 : 20 }]}>
-                <Text style={[styles.label, { color: colors.textPrimary, marginBottom: 8 }]}>
-                  Account Type
-                </Text>
-                <View
-                  style={[
-                    styles.segmentedControl,
-                    {
-                      backgroundColor: colors.inputBg,
-                      borderColor: colors.border,
-                      height: isSmallScreen ? 46 : 52,
-                    },
-                  ]}
-                >
-                  <Pressable
-                    style={[
-                      styles.segmentButton,
-                      role === 'attendee' && [
-                        styles.segmentActive,
-                        { backgroundColor: colors.cardBg },
-                      ],
-                    ]}
-                    onPress={() => setRole('attendee')}
-                  >
-                    <View
-                      style={[
-                        styles.segmentIconBadge,
-                        {
-                          backgroundColor:
-                            role === 'attendee' ? colors.primaryLight : 'transparent',
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name="ticket-outline"
-                        size={16}
-                        color={role === 'attendee' ? colors.primary : colors.textSecondary}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        {
-                          color: role === 'attendee' ? colors.primary : colors.textSecondary,
-                          fontWeight: role === 'attendee' ? '700' : '500',
-                        },
-                      ]}
-                    >
-                      Attendee
+              {/* Card Container (shadcn style) */}
+              <View style={[styles.card, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                {/* Header */}
+                <View style={styles.cardHeader}>
+                  <TixYouLogo />
+                  <View style={styles.titleRow}>
+                    <Text style={[styles.title, { color: colors.textPrimary }]}>
+                      Create account
                     </Text>
-                  </Pressable>
+                    <Ionicons name="sparkles-outline" size={20} color={colors.primary} style={{ marginLeft: 6 }} />
+                  </View>
+                  <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                    {isOrganizer
+                      ? 'Register as organizer to publish and manage events'
+                      : 'Join TixYou to discover events and buy tickets'}
+                  </Text>
+                </View>
 
-                  <Pressable
-                    style={[
-                      styles.segmentButton,
-                      role === 'organizer' && [
-                        styles.segmentActive,
-                        { backgroundColor: colors.cardBg },
-                      ],
-                    ]}
-                    onPress={() => setRole('organizer')}
-                  >
-                    <View
-                      style={[
-                        styles.segmentIconBadge,
+                {/* Card Content */}
+                <View style={styles.cardContent}>
+                  {/* Role Dropdown */}
+                  {renderDropdownTrigger('Account Role', getRoleLabel(), 'person-circle-outline', () =>
+                    setActiveDropdown('role')
+                  )}
+
+                  {/* Basic Inputs */}
+                  {renderInput('fullName', 'Full Name', 'person-outline', 'Jane Doe', fullName, setFullName)}
+                  {renderInput('email', 'Email Address', 'mail-outline', 'name@example.com', email, setEmail, {
+                    keyboardType: 'email-address',
+                    autoCapitalize: 'none',
+                    autoCorrect: false,
+                  })}
+
+                  {/* Organizer Details */}
+                  {isOrganizer && (
+                    <View style={{ gap: 16 }}>
+                      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                      <Text style={[styles.sectionHeader, { color: colors.primary }]}>
+                        Organizer Details
+                      </Text>
+
+                      {renderInput(
+                        'orgName',
+                        'Organization / Brand Name',
+                        'business-outline',
+                        'e.g. Nusantara Live',
+                        orgName,
+                        setOrgName
+                      )}
+
+                      {/* Organizer Type Dropdown */}
+                      {renderDropdownTrigger(
+                        'Organizer Type',
+                        getOrgTypeLabel(),
+                        'briefcase-outline',
+                        () => setActiveDropdown('orgType')
+                      )}
+
+                      {renderInput('phone', 'Phone / WhatsApp', 'call-outline', '+62 812 3456 7890', phone, setPhone, {
+                        keyboardType: 'phone-pad',
+                      })}
+                      {renderInput('city', 'City / Base Location', 'location-outline', 'e.g. Jakarta', city, setCity)}
+
+                      {/* Main Event Category Dropdown */}
+                      {renderDropdownTrigger(
+                        'Main Event Category',
+                        getCategoryLabel(),
+                        'grid-outline',
+                        () => setActiveDropdown('category')
+                      )}
+
+                      {category === 'Other' &&
+                        renderInput(
+                          'otherCategory',
+                          'Specify Your Category',
+                          'create-outline',
+                          'e.g. Festival, Exhibition',
+                          otherCategory,
+                          setOtherCategory
+                        )}
+
+                      {renderInput(
+                        'website',
+                        'Social Media (optional)',
+                        'logo-instagram',
+                        '@yourbrand or https://instagram.com/...',
+                        website,
+                        setWebsite,
                         {
-                          backgroundColor:
-                            role === 'organizer' ? colors.primaryLight : 'transparent',
-                        },
-                      ]}
-                    >
-                      <Ionicons
-                        name="calendar-outline"
-                        size={16}
-                        color={role === 'organizer' ? colors.primary : colors.textSecondary}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.segmentText,
-                        {
-                          color: role === 'organizer' ? colors.primary : colors.textSecondary,
-                          fontWeight: role === 'organizer' ? '700' : '500',
-                        },
-                      ]}
-                    >
-                      Organizer
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-
-              {/* Form Fields */}
-              <View style={[styles.form, { gap: isSmallScreen ? 12 : 16 }]}>
-                {/* Full Name */}
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.label, { color: colors.textPrimary }]}>
-                    Full Name
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      {
-                        backgroundColor:
-                          focusedInput === 'fullName' ? colors.inputBgFocus : colors.inputBg,
-                        borderColor:
-                          focusedInput === 'fullName' ? colors.inputBorderFocus : colors.border,
-                        height: isSmallScreen ? 48 : 54,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="person-outline"
-                      size={20}
-                      color={focusedInput === 'fullName' ? colors.primary : colors.placeholder}
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={[styles.input, { color: colors.textPrimary }]}
-                      placeholder="Jane Doe"
-                      placeholderTextColor={colors.placeholder}
-                      value={fullName}
-                      onChangeText={setFullName}
-                      onFocus={() => setFocusedInput('fullName')}
-                      onBlur={() => setFocusedInput(null)}
-                    />
-                    {fullName.length > 0 && (
-                      <Pressable onPress={() => setFullName('')} style={styles.clearIcon}>
-                        <Ionicons name="close-circle" size={18} color={colors.placeholder} />
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-
-                {/* Email Address Field */}
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.label, { color: colors.textPrimary }]}>
-                    Email Address
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      {
-                        backgroundColor:
-                          focusedInput === 'email' ? colors.inputBgFocus : colors.inputBg,
-                        borderColor:
-                          focusedInput === 'email' ? colors.inputBorderFocus : colors.border,
-                        height: isSmallScreen ? 48 : 54,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="mail-outline"
-                      size={20}
-                      color={focusedInput === 'email' ? colors.primary : colors.placeholder}
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={[styles.input, { color: colors.textPrimary }]}
-                      placeholder="name@example.com"
-                      placeholderTextColor={colors.placeholder}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      value={email}
-                      onChangeText={setEmail}
-                      onFocus={() => setFocusedInput('email')}
-                      onBlur={() => setFocusedInput(null)}
-                    />
-                    {email.length > 0 && (
-                      <Pressable onPress={() => setEmail('')} style={styles.clearIcon}>
-                        <Ionicons name="close-circle" size={18} color={colors.placeholder} />
-                      </Pressable>
-                    )}
-                  </View>
-                </View>
-
-                {/* Password Field */}
-                <View style={styles.inputGroup}>
-                  <Text style={[styles.label, { color: colors.textPrimary }]}>
-                    Password
-                  </Text>
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      {
-                        backgroundColor:
-                          focusedInput === 'password' ? colors.inputBgFocus : colors.inputBg,
-                        borderColor:
-                          focusedInput === 'password' ? colors.inputBorderFocus : colors.border,
-                        height: isSmallScreen ? 48 : 54,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="lock-closed-outline"
-                      size={20}
-                      color={focusedInput === 'password' ? colors.primary : colors.placeholder}
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={[styles.input, { color: colors.textPrimary }]}
-                      placeholder="Create a password (min 6 chars)"
-                      placeholderTextColor={colors.placeholder}
-                      secureTextEntry={!showPassword}
-                      value={password}
-                      onChangeText={setPassword}
-                      onFocus={() => setFocusedInput('password')}
-                      onBlur={() => setFocusedInput(null)}
-                    />
-                    <Pressable
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={styles.eyeIcon}
-                    >
-                      <Ionicons
-                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                        size={20}
-                        color={colors.placeholder}
-                      />
-                    </Pressable>
-                  </View>
-                </View>
-
-                {/* Confirm Password Field with live feedback */}
-                <View style={styles.inputGroup}>
-                  <View style={styles.labelWithHint}>
-                    <Text style={[styles.label, { color: colors.textPrimary }]}>
-                      Confirm Password
-                    </Text>
-                    {passwordsMatch && (
-                      <View style={styles.hintBadge}>
-                        <Ionicons name="checkmark-circle" size={13} color={colors.success} />
-                        <Text style={[styles.hintText, { color: colors.success }]}>Passwords match</Text>
-                      </View>
-                    )}
-                    {passwordsMismatch && (
-                      <View style={styles.hintBadge}>
-                        <Ionicons name="alert-circle" size={13} color={colors.error} />
-                        <Text style={[styles.hintText, { color: colors.error }]}>Does not match</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View
-                    style={[
-                      styles.inputContainer,
-                      {
-                        backgroundColor:
-                          focusedInput === 'confirmPassword'
-                            ? colors.inputBgFocus
-                            : colors.inputBg,
-                        borderColor: passwordsMismatch
-                          ? colors.error
-                          : passwordsMatch
-                          ? colors.success
-                          : focusedInput === 'confirmPassword'
-                          ? colors.inputBorderFocus
-                          : colors.border,
-                        height: isSmallScreen ? 48 : 54,
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name="shield-checkmark-outline"
-                      size={20}
-                      color={
-                        passwordsMatch
-                          ? colors.success
-                          : passwordsMismatch
-                          ? colors.error
-                          : focusedInput === 'confirmPassword'
-                          ? colors.primary
-                          : colors.placeholder
-                      }
-                      style={styles.inputIcon}
-                    />
-                    <TextInput
-                      style={[styles.input, { color: colors.textPrimary }]}
-                      placeholder="Repeat your password"
-                      placeholderTextColor={colors.placeholder}
-                      secureTextEntry={!showPassword}
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      onFocus={() => setFocusedInput('confirmPassword')}
-                      onBlur={() => setFocusedInput(null)}
-                    />
-                  </View>
-                </View>
-
-                {/* Terms Checkbox */}
-                <Pressable
-                  style={styles.termsRow}
-                  onPress={() => setAgreeTerms(!agreeTerms)}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      agreeTerms && {
-                        backgroundColor: colors.primary,
-                        borderColor: colors.primary,
-                      },
-                      !agreeTerms && { borderColor: colors.placeholder },
-                    ]}
-                  >
-                    {agreeTerms && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-                  </View>
-                  <Text style={[styles.termsText, { color: colors.textSecondary }]}>
-                    I agree to TixYou <Text style={[styles.linkText, { color: colors.primary }]}>Terms of Service</Text> and{' '}
-                    <Text style={[styles.linkText, { color: colors.primary }]}>Privacy Policy</Text>.
-                  </Text>
-                </Pressable>
-
-                {/* Submit Button */}
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.submitButton,
-                    {
-                      backgroundColor: colors.primary,
-                      height: isSmallScreen ? 48 : 54,
-                    },
-                    pressed && { opacity: 0.92, transform: [{ scale: 0.985 }] },
-                  ]}
-                  onPress={handleSignUp}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <View style={styles.buttonInner}>
-                      <Text style={styles.submitButtonText}>Create Account</Text>
-                      <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                          autoCapitalize: 'none',
+                          autoCorrect: false,
+                        }
+                      )}
+                      <View style={[styles.divider, { backgroundColor: colors.border }]} />
                     </View>
                   )}
-                </Pressable>
-              </View>
-            </View>
 
-            {/* Footer Link to Login */}
-            <View style={[styles.footer, { marginTop: isSmallScreen ? 20 : 32 }]}>
-              <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-                Already have an account?{' '}
-              </Text>
-              <Pressable onPress={() => router.push('/login/login')}>
-                <Text style={[styles.loginLink, { color: colors.primary }]}>Sign In</Text>
-              </Pressable>
+                  {/* Password Field with Eye Toggle */}
+                  <View style={styles.inputGroup}>
+                    <Text style={[styles.label, { color: colors.textPrimary }]}>Password</Text>
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        {
+                          backgroundColor: focusedInput === 'password' ? colors.inputBgFocus : colors.inputBg,
+                          borderColor: focusedInput === 'password' ? colors.inputBorderFocus : colors.border,
+                          height: isSmallScreen ? 46 : 50,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={18}
+                        color={focusedInput === 'password' ? colors.primary : colors.placeholder}
+                        style={styles.inputIcon}
+                      />
+                      <TextInput
+                        style={[styles.input, { color: colors.textPrimary }]}
+                        placeholder="Create password (min 6 chars)"
+                        placeholderTextColor={colors.placeholder}
+                        secureTextEntry={!showPassword}
+                        value={password}
+                        onChangeText={setPassword}
+                        onFocus={() => setFocusedInput('password')}
+                        onBlur={() => setFocusedInput(null)}
+                      />
+                      <Pressable onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                        <Ionicons
+                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={18}
+                          color={colors.placeholder}
+                        />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {/* Confirm Password Field with Eye Toggle & Live Feedback */}
+                  <View style={styles.inputGroup}>
+                    <View style={styles.labelWithHint}>
+                      <Text style={[styles.label, { color: colors.textPrimary }]}>Confirm Password</Text>
+                      {passwordsMatch && <Text style={[styles.hintText, { color: colors.success }]}>Passwords match</Text>}
+                      {passwordsMismatch && <Text style={[styles.hintText, { color: colors.error }]}>Does not match</Text>}
+                    </View>
+                    <View
+                      style={[
+                        styles.inputContainer,
+                        {
+                          backgroundColor: focusedInput === 'confirmPassword' ? colors.inputBgFocus : colors.inputBg,
+                          borderColor: passwordsMismatch
+                            ? colors.error
+                            : passwordsMatch
+                            ? colors.success
+                            : focusedInput === 'confirmPassword'
+                            ? colors.inputBorderFocus
+                            : colors.border,
+                          height: isSmallScreen ? 46 : 50,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name="shield-checkmark-outline"
+                        size={18}
+                        color={
+                          passwordsMatch
+                            ? colors.success
+                            : passwordsMismatch
+                            ? colors.error
+                            : focusedInput === 'confirmPassword'
+                            ? colors.primary
+                            : colors.placeholder
+                        }
+                        style={styles.inputIcon}
+                      />
+                      <TextInput
+                        style={[styles.input, { color: colors.textPrimary }]}
+                        placeholder="Repeat your password"
+                        placeholderTextColor={colors.placeholder}
+                        secureTextEntry={!showConfirmPassword}
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                        onFocus={() => setFocusedInput('confirmPassword')}
+                        onBlur={() => setFocusedInput(null)}
+                      />
+                      <Pressable onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeIcon}>
+                        <Ionicons
+                          name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={18}
+                          color={colors.placeholder}
+                        />
+                      </Pressable>
+                    </View>
+                  </View>
+
+                  {/* Terms Checkbox */}
+                  <Pressable style={styles.termsRow} onPress={() => setAgreeTerms(!agreeTerms)}>
+                    <View
+                      style={[
+                        styles.checkbox,
+                        agreeTerms && { backgroundColor: colors.primary, borderColor: colors.primary },
+                        !agreeTerms && { borderColor: colors.placeholder },
+                      ]}
+                    >
+                      {agreeTerms && <Ionicons name="checkmark" size={12} color="#FFFFFF" />}
+                    </View>
+                    <Text style={[styles.termsText, { color: colors.textSecondary }]}>
+                      I agree to TixYou{' '}
+                      <Text style={[styles.linkText, { color: colors.primary }]}>Terms of Service</Text> and{' '}
+                      <Text style={[styles.linkText, { color: colors.primary }]}>Privacy Policy</Text>.
+                    </Text>
+                  </Pressable>
+
+                  {/* Submit Button */}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.submitButton,
+                      { backgroundColor: colors.primary, height: isSmallScreen ? 48 : 52 },
+                      pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+                    ]}
+                    onPress={handleSignUp}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.submitButtonText}>
+                        {isOrganizer ? 'Create Organizer Account' : 'Create Account'}
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
+
+                {/* Card Footer */}
+                <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+                  <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                    Already have an account?{' '}
+                  </Text>
+                  <Pressable onPress={() => router.push('/login/login')}>
+                    <Text style={[styles.loginLink, { color: colors.primary }]}>Sign in</Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </TouchableWithoutFeedback>
+
+      {/* Select Dropdown Modal (Shadcn UI style) */}
+      <Modal
+        visible={activeDropdown !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setActiveDropdown(null)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setActiveDropdown(null)}>
+          <View style={[styles.modalContent, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
+                {activeDropdown === 'role'
+                  ? 'Select Account Role'
+                  : activeDropdown === 'orgType'
+                  ? 'Select Organizer Type'
+                  : 'Select Event Category'}
+              </Text>
+              <Pressable onPress={() => setActiveDropdown(null)}>
+                <Ionicons name="close-circle" size={22} color={colors.placeholder} />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={{ maxHeight: 320 }}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              scrollEventThrottle={16}
+              nestedScrollEnabled
+            >
+              {activeDropdown === 'role' &&
+                ROLE_OPTIONS.map((item) => {
+                  const selected = role === item.value;
+                  return (
+                    <Pressable
+                      key={item.value}
+                      style={[
+                        styles.modalOption,
+                        selected && { backgroundColor: colors.primaryLight },
+                        { borderBottomColor: colors.border },
+                      ]}
+                      onPress={() => {
+                        setRole(item.value as UserRole);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      <Ionicons
+                        name={item.icon as any}
+                        size={20}
+                        color={selected ? colors.primary : colors.textSecondary}
+                      />
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text
+                          style={[
+                            styles.modalOptionTitle,
+                            { color: selected ? colors.primary : colors.textPrimary, fontWeight: selected ? '700' : '600' },
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                        <Text style={[styles.modalOptionSub, { color: colors.textSecondary }]}>{item.desc}</Text>
+                      </View>
+                      {selected && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                    </Pressable>
+                  );
+                })}
+
+              {activeDropdown === 'orgType' &&
+                ORGANIZER_TYPES.map((item) => {
+                  const selected = orgType === item.value;
+                  return (
+                    <Pressable
+                      key={item.value}
+                      style={[
+                        styles.modalOption,
+                        selected && { backgroundColor: colors.primaryLight },
+                        { borderBottomColor: colors.border },
+                      ]}
+                      onPress={() => {
+                        setOrgType(item.value);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      <Ionicons
+                        name={item.icon as any}
+                        size={20}
+                        color={selected ? colors.primary : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.modalOptionTitle,
+                          {
+                            flex: 1,
+                            marginLeft: 12,
+                            color: selected ? colors.primary : colors.textPrimary,
+                            fontWeight: selected ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                      {selected && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                    </Pressable>
+                  );
+                })}
+
+              {activeDropdown === 'category' &&
+                EVENT_CATEGORIES.map((item) => {
+                  const selected = category === item.value;
+                  return (
+                    <Pressable
+                      key={item.value}
+                      style={[
+                        styles.modalOption,
+                        selected && { backgroundColor: colors.primaryLight },
+                        { borderBottomColor: colors.border },
+                      ]}
+                      onPress={() => {
+                        setCategory(item.value);
+                        setActiveDropdown(null);
+                      }}
+                    >
+                      <Ionicons
+                        name={item.icon as any}
+                        size={20}
+                        color={selected ? colors.primary : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.modalOptionTitle,
+                          {
+                            flex: 1,
+                            marginLeft: 12,
+                            color: selected ? colors.primary : colors.textPrimary,
+                            fontWeight: selected ? '700' : '500',
+                          },
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                      {selected && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                    </Pressable>
+                  );
+                })}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -533,97 +716,88 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'space-between',
-    paddingHorizontal: 24,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  centerWrapper: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+  },
+  topNav: {
+    marginBottom: 12,
   },
   backButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  card: {
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden',
     ...Platform.select({
-      web: { boxShadow: '0px 2px 8px rgba(0,0,0,0.04)' },
+      web: { boxShadow: '0 12px 24px -4px rgba(0, 0, 0, 0.08)' },
       default: {
+        elevation: 4,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
-        shadowRadius: 4,
-        elevation: 1,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
       },
     }),
   },
-  brandHeader: {
+  cardHeader: {
+    alignItems: 'center',
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+  },
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+    marginBottom: 4,
   },
-  brandBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
+  logoBadge: {
+    width: 56,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 12,
   },
-  brandText: {
-    fontSize: 18,
-    fontWeight: '800',
+  logoImage: {
+    width: 56,
+    height: 56,
   },
-  headerSection: {},
   title: {
+    fontSize: 22,
     fontWeight: '800',
-    marginBottom: 8,
-    letterSpacing: -0.5,
+    letterSpacing: -0.4,
+    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
   },
-  roleContainer: {},
-  segmentedControl: {
-    flexDirection: 'row',
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 4,
-  },
-  segmentButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    gap: 8,
-  },
-  segmentIconBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segmentActive: {
-    ...Platform.select({
-      web: { boxShadow: '0px 2px 8px rgba(0,0,0,0.08)' },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2,
-      },
-    }),
-  },
-  segmentText: {
-    fontSize: 14,
-  },
-  form: {
+  cardContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
     gap: 16,
+  },
+  sectionHeader: {
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  divider: {
+    height: 1,
+    width: '100%',
+    marginVertical: 4,
   },
   inputGroup: {
     gap: 6,
@@ -634,13 +808,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
-  },
-  hintBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
   },
   hintText: {
     fontSize: 12,
@@ -649,87 +818,131 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1.5,
-    paddingHorizontal: 16,
-    ...Platform.select({
-      web: { transition: 'border-color 0.2s ease, background-color 0.2s ease' },
-    }),
+    paddingHorizontal: 14,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
-  },
-  clearIcon: {
-    padding: 4,
   },
   eyeIcon: {
     padding: 4,
   },
+  dropdownTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+  },
+  dropdownLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dropdownValueText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
   termsRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 10,
-    marginVertical: 4,
+    marginTop: 4,
   },
   checkbox: {
-    width: 22,
-    height: 22,
-    borderRadius: 7,
+    width: 20,
+    height: 20,
+    borderRadius: 6,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 1,
   },
   termsText: {
-    flex: 1,
     fontSize: 13,
-    lineHeight: 20,
+    flex: 1,
   },
   linkText: {
     fontWeight: '700',
   },
   submitButton: {
-    borderRadius: 16,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
     ...Platform.select({
-      web: { boxShadow: '0px 6px 20px rgba(79, 70, 229, 0.35)' },
+      web: { boxShadow: '0 6px 16px rgba(79, 70, 229, 0.35)' },
       default: {
         shadowColor: '#4F46E5',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.35,
-        shadowRadius: 12,
-        elevation: 6,
+        shadowRadius: 10,
+        elevation: 5,
       },
     }),
   },
-  buttonInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
+    color: '#FFFFFF',
   },
-  footer: {
+  cardFooter: {
+    borderTopWidth: 1,
+    paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
+    fontSize: 13,
   },
   loginLink: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
   },
+  // Modal Dropdown Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: 12,
+    marginBottom: 8,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+  },
+  modalOptionTitle: {
+    fontSize: 14,
+  },
+  modalOptionSub: {
+    fontSize: 12,
+    marginTop: 2,
+  },
 });
-
