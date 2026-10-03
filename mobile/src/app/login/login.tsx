@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -16,14 +15,19 @@ import {
   TextInput,
   TouchableWithoutFeedback,
   useColorScheme,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { API_BASE_URL } from '@/services/api';
 
 export default function LoginScreen() {
   const router = useRouter();
   const isDark = useColorScheme() === 'dark';
+  const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const isSmallScreen = height < 720;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,7 +63,7 @@ export default function LoginScreen() {
         Alert.alert('Login Successful', 'Successfully logged into TixYou!');
         router.replace('/');
       }
-    } catch (error) {
+    } catch {
       // Demo fallback offline
       Alert.alert('Login Successful (Offline Mode)', 'Entering TixYou application...');
       router.replace('/');
@@ -84,248 +88,259 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.bg}
+      />
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           <ScrollView
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                paddingTop: Math.max(insets.top, Platform.OS === 'android' ? 16 : 12) + 8,
+                paddingBottom: Math.max(insets.bottom, 16) + 16,
+              },
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Top Bar Navigation */}
-            <View style={styles.topBar}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.backButton,
-                  {
-                    backgroundColor: colors.cardBg,
-                    borderColor: colors.border,
-                  },
-                  pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
-                ]}
-                onPress={() => router.back()}
-              >
-                <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
-              </Pressable>
-
-              {/* Brand Indicator */}
-              <View style={styles.brandHeader}>
-                <View style={[styles.brandBadge, { backgroundColor: colors.primary }]}>
-                  <Ionicons name="ticket" size={14} color="#FFFFFF" />
-                </View>
-                <Text style={[styles.brandText, { color: colors.textPrimary }]}>
-                  Tix<Text style={{ color: colors.primary }}>You</Text>
-                </Text>
-              </View>
-            </View>
-
-            {/* Header Section */}
-            <View style={styles.headerSection}>
-              <Text style={[styles.title, { color: colors.textPrimary }]}>
-                Welcome Back 👋
-              </Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-                Sign in to manage your tickets, access events, and explore local auctions.
-              </Text>
-            </View>
-
-            {/* Login Form */}
-            <View style={styles.form}>
-              {/* Email Address Field */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.textPrimary }]}>
-                  Email Address
-                </Text>
-                <View
-                  style={[
-                    styles.inputContainer,
+            <View>
+              {/* Top Bar Navigation */}
+              <View style={[styles.topBar, { marginBottom: isSmallScreen ? 16 : 28 }]}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.backButton,
                     {
-                      backgroundColor:
-                        focusedInput === 'email' ? colors.inputBgFocus : colors.inputBg,
-                      borderColor:
-                        focusedInput === 'email' ? colors.inputBorderFocus : colors.border,
+                      backgroundColor: colors.cardBg,
+                      borderColor: colors.border,
                     },
+                    pressed && { opacity: 0.7, transform: [{ scale: 0.95 }] },
                   ]}
+                  onPress={() => router.back()}
                 >
-                  <Ionicons
-                    name="mail-outline"
-                    size={20}
-                    color={focusedInput === 'email' ? colors.primary : colors.placeholder}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={[styles.input, { color: colors.textPrimary }]}
-                    placeholder="name@example.com"
-                    placeholderTextColor={colors.placeholder}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    value={email}
-                    onChangeText={setEmail}
-                    onFocus={() => setFocusedInput('email')}
-                    onBlur={() => setFocusedInput(null)}
-                  />
-                  {email.length > 0 && (
-                    <Pressable onPress={() => setEmail('')} style={styles.clearIcon}>
-                      <Ionicons name="close-circle" size={18} color={colors.placeholder} />
-                    </Pressable>
-                  )}
+                  <Ionicons name="arrow-back" size={20} color={colors.textPrimary} />
+                </Pressable>
+
+                {/* Brand Indicator */}
+                <View style={styles.brandHeader}>
+                  <View style={[styles.brandBadge, { backgroundColor: colors.primary }]}>
+                    <Ionicons name="ticket" size={14} color="#FFFFFF" />
+                  </View>
+                  <Text style={[styles.brandText, { color: colors.textPrimary }]}>
+                    Tix<Text style={{ color: colors.primary }}>You</Text>
+                  </Text>
                 </View>
               </View>
 
-              {/* Password Field */}
-              <View style={styles.inputGroup}>
-                <Text style={[styles.label, { color: colors.textPrimary }]}>
-                  Password
+              {/* Header Section */}
+              <View style={[styles.headerSection, { marginBottom: isSmallScreen ? 20 : 32 }]}>
+                <Text style={[styles.title, { color: colors.textPrimary, fontSize: isSmallScreen ? 24 : 28 }]}>
+                  Welcome Back 👋
                 </Text>
-                <View
-                  style={[
-                    styles.inputContainer,
-                    {
-                      backgroundColor:
-                        focusedInput === 'password' ? colors.inputBgFocus : colors.inputBg,
-                      borderColor:
-                        focusedInput === 'password' ? colors.inputBorderFocus : colors.border,
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={20}
-                    color={focusedInput === 'password' ? colors.primary : colors.placeholder}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={[styles.input, { color: colors.textPrimary }]}
-                    placeholder="Enter your password"
-                    placeholderTextColor={colors.placeholder}
-                    secureTextEntry={!showPassword}
-                    value={password}
-                    onChangeText={setPassword}
-                    onFocus={() => setFocusedInput('password')}
-                    onBlur={() => setFocusedInput(null)}
-                  />
-                  <Pressable
-                    onPress={() => setShowPassword(!showPassword)}
-                    style={styles.eyeIcon}
+                <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                  Sign in to manage your tickets, access events, and explore local auctions.
+                </Text>
+              </View>
+
+              {/* Login Form */}
+              <View style={[styles.form, { gap: isSmallScreen ? 14 : 20 }]}>
+                {/* Email Address Field */}
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.label, { color: colors.textPrimary }]}>
+                    Email Address
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      {
+                        backgroundColor:
+                          focusedInput === 'email' ? colors.inputBgFocus : colors.inputBg,
+                        borderColor:
+                          focusedInput === 'email' ? colors.inputBorderFocus : colors.border,
+                      },
+                    ]}
                   >
                     <Ionicons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      name="mail-outline"
                       size={20}
-                      color={colors.placeholder}
+                      color={focusedInput === 'email' ? colors.primary : colors.placeholder}
+                      style={styles.inputIcon}
                     />
+                    <TextInput
+                      style={[styles.input, { color: colors.textPrimary }]}
+                      placeholder="name@example.com"
+                      placeholderTextColor={colors.placeholder}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      value={email}
+                      onChangeText={setEmail}
+                      onFocus={() => setFocusedInput('email')}
+                      onBlur={() => setFocusedInput(null)}
+                    />
+                    {email.length > 0 && (
+                      <Pressable onPress={() => setEmail('')} style={styles.clearIcon}>
+                        <Ionicons name="close-circle" size={18} color={colors.placeholder} />
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+
+                {/* Password Field */}
+                <View style={styles.inputGroup}>
+                  <Text style={[styles.label, { color: colors.textPrimary }]}>
+                    Password
+                  </Text>
+                  <View
+                    style={[
+                      styles.inputContainer,
+                      {
+                        backgroundColor:
+                          focusedInput === 'password' ? colors.inputBgFocus : colors.inputBg,
+                        borderColor:
+                          focusedInput === 'password' ? colors.inputBorderFocus : colors.border,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name="lock-closed-outline"
+                      size={20}
+                      color={focusedInput === 'password' ? colors.primary : colors.placeholder}
+                      style={styles.inputIcon}
+                    />
+                    <TextInput
+                      style={[styles.input, { color: colors.textPrimary }]}
+                      placeholder="Enter your password"
+                      placeholderTextColor={colors.placeholder}
+                      secureTextEntry={!showPassword}
+                      value={password}
+                      onChangeText={setPassword}
+                      onFocus={() => setFocusedInput('password')}
+                      onBlur={() => setFocusedInput(null)}
+                    />
+                    <Pressable
+                      onPress={() => setShowPassword(!showPassword)}
+                      style={styles.eyeIcon}
+                    >
+                      <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={colors.placeholder}
+                      />
+                    </Pressable>
+                  </View>
+                </View>
+
+                {/* Remember Me & Forgot Password */}
+                <View style={styles.rowBetween}>
+                  <View style={styles.rememberRow}>
+                    <Switch
+                      value={rememberMe}
+                      onValueChange={setRememberMe}
+                      trackColor={{ false: colors.border, true: colors.primary }}
+                      thumbColor="#FFFFFF"
+                      style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+                    />
+                    <Text style={[styles.rememberText, { color: colors.textSecondary }]}>
+                      Remember me
+                    </Text>
+                  </View>
+
+                  <Pressable
+                    onPress={() =>
+                      Alert.alert(
+                        'Reset Password',
+                        'Password reset instructions have been sent to your email.'
+                      )
+                    }
+                  >
+                    <Text style={[styles.forgotText, { color: colors.primary }]}>
+                      Forgot Password?
+                    </Text>
                   </Pressable>
                 </View>
-              </View>
 
-              {/* Remember Me & Forgot Password */}
-              <View style={styles.rowBetween}>
-                <View style={styles.rememberRow}>
-                  <Switch
-                    value={rememberMe}
-                    onValueChange={setRememberMe}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor="#FFFFFF"
-                    style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
-                  />
-                  <Text style={[styles.rememberText, { color: colors.textSecondary }]}>
-                    Remember me
+                {/* Submit Button */}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.submitButton,
+                    { backgroundColor: colors.primary },
+                    pressed && { opacity: 0.92, transform: [{ scale: 0.985 }] },
+                  ]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <View style={styles.buttonInner}>
+                      <Text style={styles.submitButtonText}>Sign In</Text>
+                      <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
+                    </View>
+                  )}
+                </Pressable>
+
+                {/* Divider */}
+                <View style={styles.dividerRow}>
+                  <View style={[styles.dividerLine, { backgroundColor: colors.divider }]} />
+                  <Text style={[styles.dividerText, { color: colors.textSecondary }]}>
+                    OR CONTINUE WITH
                   </Text>
+                  <View style={[styles.dividerLine, { backgroundColor: colors.divider }]} />
                 </View>
 
-                <Pressable
-                  onPress={() =>
-                    Alert.alert(
-                      'Reset Password',
-                      'Password reset instructions have been sent to your email.'
-                    )
-                  }
-                >
-                  <Text style={[styles.forgotText, { color: colors.primary }]}>
-                    Forgot Password?
-                  </Text>
-                </Pressable>
-              </View>
+                {/* Social Login Buttons */}
+                <View style={styles.socialRow}>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.socialButton,
+                      {
+                        backgroundColor: colors.cardBg,
+                        borderColor: colors.border,
+                      },
+                      pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+                    ]}
+                    onPress={() =>
+                      Alert.alert('Google Sign-In', 'Connecting Google authentication...')
+                    }
+                  >
+                    <Ionicons name="logo-google" size={20} color="#EA4335" />
+                    <Text style={[styles.socialText, { color: colors.textPrimary }]}>
+                      Google
+                    </Text>
+                  </Pressable>
 
-              {/* Submit Button */}
-              <Pressable
-                style={({ pressed }) => [
-                  styles.submitButton,
-                  { backgroundColor: colors.primary },
-                  pressed && { opacity: 0.92, transform: [{ scale: 0.985 }] },
-                ]}
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" />
-                ) : (
-                  <View style={styles.buttonInner}>
-                    <Text style={styles.submitButtonText}>Sign In</Text>
-                    <Ionicons name="arrow-forward" size={18} color="#FFFFFF" style={{ marginLeft: 6 }} />
-                  </View>
-                )}
-              </Pressable>
-
-              {/* Divider */}
-              <View style={styles.dividerRow}>
-                <View style={[styles.dividerLine, { backgroundColor: colors.divider }]} />
-                <Text style={[styles.dividerText, { color: colors.textSecondary }]}>
-                  OR CONTINUE WITH
-                </Text>
-                <View style={[styles.dividerLine, { backgroundColor: colors.divider }]} />
-              </View>
-
-              {/* Social Login Buttons */}
-              <View style={styles.socialRow}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.socialButton,
-                    {
-                      backgroundColor: colors.cardBg,
-                      borderColor: colors.border,
-                    },
-                    pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
-                  ]}
-                  onPress={() =>
-                    Alert.alert('Google Sign-In', 'Connecting Google authentication...')
-                  }
-                >
-                  <Ionicons name="logo-google" size={20} color="#EA4335" />
-                  <Text style={[styles.socialText, { color: colors.textPrimary }]}>
-                    Google
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.socialButton,
-                    {
-                      backgroundColor: colors.cardBg,
-                      borderColor: colors.border,
-                    },
-                    pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
-                  ]}
-                  onPress={() =>
-                    Alert.alert('Apple Sign-In', 'Connecting Apple authentication...')
-                  }
-                >
-                  <Ionicons name="logo-apple" size={20} color={colors.textPrimary} />
-                  <Text style={[styles.socialText, { color: colors.textPrimary }]}>
-                    Apple
-                  </Text>
-                </Pressable>
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.socialButton,
+                      {
+                        backgroundColor: colors.cardBg,
+                        borderColor: colors.border,
+                      },
+                      pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+                    ]}
+                    onPress={() =>
+                      Alert.alert('Apple Sign-In', 'Connecting Apple authentication...')
+                    }
+                  >
+                    <Ionicons name="logo-apple" size={20} color={colors.textPrimary} />
+                    <Text style={[styles.socialText, { color: colors.textPrimary }]}>
+                      Apple
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
 
             {/* Footer Link to Signup */}
-            <View style={styles.footer}>
+            <View style={[styles.footer, { marginTop: isSmallScreen ? 24 : 36 }]}>
               <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-                Don't have an account?{' '}
+                {"Don't have an account? "}
               </Text>
               <Pressable onPress={() => router.push('/login/signup')}>
                 <Text style={[styles.signupLink, { color: colors.primary }]}>Sign Up</Text>
@@ -334,7 +349,7 @@ export default function LoginScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -343,15 +358,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'space-between',
     paddingHorizontal: 24,
-    paddingTop: Platform.OS === 'android' ? 24 : 12,
-    paddingBottom: 40,
   },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 28,
   },
   backButton: {
     width: 42,
@@ -387,11 +401,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
-  headerSection: {
-    marginBottom: 32,
-  },
+  headerSection: {},
   title: {
-    fontSize: 28,
     fontWeight: '800',
     marginBottom: 8,
     letterSpacing: -0.5,
@@ -484,7 +495,7 @@ const styles = StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 8,
+    marginVertical: 4,
     gap: 12,
   },
   dividerLine: {
@@ -528,7 +539,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 36,
   },
   footerText: {
     fontSize: 14,
