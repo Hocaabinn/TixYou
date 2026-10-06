@@ -7,7 +7,7 @@ export default function Index() {
 
   useEffect(() => {
     if (!rootNavigationState?.key) return;
-    router.replace('/login/welcome');
+    router.replace('/onboarding');
   }, [rootNavigationState?.key, router]);
 
   return null;
