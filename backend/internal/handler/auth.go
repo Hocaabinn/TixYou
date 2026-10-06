@@ -1,10 +1,16 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
+
+	"tixyou/backend/internal/database"
+	"tixyou/backend/internal/model"
 )
 
 type LoginRequest struct {
@@ -27,12 +33,10 @@ type SignUpRequest struct {
 	Website          string `json:"website"`
 }
 
-type UserProfile struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
-	Role      string    `json:"role"`
-	CreatedAt time.Time `json:"created_at"`
+func generateID(prefix string) string {
+	bytes := make([]byte, 8)
+	rand.Read(bytes)
+	return prefix + "_" + hex.EncodeToString(bytes)
 }
 
 func LoginHandler(c *gin.Context) {
@@ -45,21 +49,55 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Demo user authentication logic
-	user := UserProfile{
-		ID:        "usr_1001",
-		Name:      "Bintang",
-		Email:     req.Email,
-		Role:      "attendee",
-		CreatedAt: time.Now(),
+	// If Database is connected, query from DB
+	if database.DB != nil {
+		var user model.User
+		if err := database.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": "Email atau password salah.",
+			})
+			return
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"success": false,
+				"message": "Email atau password salah.",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "Login berhasil!",
+			"data": gin.H{
+				"token": "jwt_token_" + user.ID,
+				"user": gin.H{
+					"id":         user.ID,
+					"name":       user.Name,
+					"email":      user.Email,
+					"role":       user.Role,
+					"created_at": user.CreatedAt,
+				},
+			},
+		})
+		return
 	}
 
+	// Fallback mock authentication if DB not connected yet
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "Login berhasil!",
+		"message": "Login berhasil (mode demo/offline DB)!",
 		"data": gin.H{
 			"token": "mock_jwt_token_tixyou_2026",
-			"user":  user,
+			"user": gin.H{
+				"id":         "usr_demo",
+				"name":       "Demo User",
+				"email":      req.Email,
+				"role":       "attendee",
+				"created_at": time.Now(),
+			},
 		},
 	})
 }
@@ -86,19 +124,90 @@ func SignUpHandler(c *gin.Context) {
 		return
 	}
 
-	newUser := UserProfile{
-		ID:        "usr_1002",
-		Name:      req.Name,
-		Email:     req.Email,
-		Role:      req.Role,
-		CreatedAt: time.Now(),
+	// If Database is connected, store in PostgreSQL
+	if database.DB != nil {
+		var existingUser model.User
+		if err := database.DB.Where("email = ?", req.Email).First(&existingUser).Error; err == nil {
+			c.JSON(http.StatusConflict, gin.H{
+				"success": false,
+				"message": "Email sudah terdaftar. Silakan login.",
+			})
+			return
+		}
+
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Gagal mengenkripsi password.",
+			})
+			return
+		}
+
+		userID := generateID("usr")
+		newUser := model.User{
+			ID:           userID,
+			Email:        req.Email,
+			PasswordHash: string(hashedPassword),
+			Name:         req.Name,
+			Role:         req.Role,
+			Phone:        req.Phone,
+			CreatedAt:    time.Now(),
+			UpdatedAt:    time.Now(),
+		}
+
+		if err := database.DB.Create(&newUser).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Gagal menyimpan akun ke database: " + err.Error(),
+			})
+			return
+		}
+
+		// If organizer, create organizer record
+		if req.Role == "organizer" {
+			organizer := model.Organizer{
+				ID:               generateID("org"),
+				UserID:           userID,
+				OrganizationName: req.OrganizationName,
+				OrganizerType:    req.OrganizerType,
+				City:             req.City,
+				PrimaryCategory:  req.PrimaryCategory,
+				Website:          req.Website,
+				CreatedAt:        time.Now(),
+				UpdatedAt:        time.Now(),
+			}
+			database.DB.Create(&organizer)
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"message": "Akun berhasil dibuat di database Supabase! Silakan login.",
+			"data": gin.H{
+				"user": gin.H{
+					"id":         newUser.ID,
+					"name":       newUser.Name,
+					"email":      newUser.Email,
+					"role":       newUser.Role,
+					"created_at": newUser.CreatedAt,
+				},
+			},
+		})
+		return
 	}
 
+	// Fallback mock response if DB not connected yet
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"message": "Akun berhasil dibuat! Silakan login.",
+		"message": "Akun berhasil dibuat (mode demo/offline DB)! Silakan login.",
 		"data": gin.H{
-			"user": newUser,
+			"user": gin.H{
+				"id":         generateID("usr"),
+				"name":       req.Name,
+				"email":      req.Email,
+				"role":       req.Role,
+				"created_at": time.Now(),
+			},
 		},
 	})
 }
