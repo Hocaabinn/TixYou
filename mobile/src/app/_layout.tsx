@@ -40,7 +40,19 @@ export default function RootLayout() {
             },
           }}
         >
-          <Stack.Screen name="login/welcome" />
+          <Stack.Screen
+            name="onboarding/index"
+            options={{
+              animation: 'fade',
+            }}
+          />
+          <Stack.Screen
+            name="login/welcome"
+            options={{
+              animation: 'fade',
+              animationDuration: 500,
+            }}
+          />
           <Stack.Screen name="login/login" />
           <Stack.Screen
             name="login/signup"
