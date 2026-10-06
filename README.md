@@ -216,4 +216,4 @@ MIT — lihat [LICENSE](LICENSE).
 <sub>Built with ❤️ following the TIXORA PRD v1.1</sub>
 </div>
 
-Override via env: `EXPO_PUBLIC_API_URL=http://<host>:8080/api/v1`
+
