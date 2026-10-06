@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE_URL } from '@/services/api';
+import { loginUser } from '@/services/api';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -47,26 +47,14 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      const res = await loginUser(email.trim().toLowerCase(), password);
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        Alert.alert('Success', `Welcome back, ${data.data.user.name || 'User'}!`);
-        router.replace('/');
-      } else {
-        // Fallback demo login
-        Alert.alert('Login Successful', 'Successfully logged into TixYou!');
-        router.replace('/');
+      if (res.success && res.data) {
+        Alert.alert('Selamat Datang!', `Halo, ${res.data.user.name || 'User'}!`);
+        router.replace('/explore');
       }
-    } catch {
-      // Demo fallback offline
-      Alert.alert('Login Successful (Offline Mode)', 'Entering TixYou application...');
-      router.replace('/');
+    } catch (error: any) {
+      Alert.alert('Login Gagal', error.message || 'Email atau password salah.');
     } finally {
       setLoading(false);
     }
