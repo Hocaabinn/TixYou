@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE_URL } from '@/services/api';
+import { registerUser } from '@/services/api';
 
 type UserRole = 'attendee' | 'organizer';
 type FocusField =
@@ -142,7 +142,7 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      const payload: Record<string, string> = { name: fullName, email, password, role };
+      const payload: Record<string, string> = { name: fullName.trim(), email: email.trim().toLowerCase(), password, role };
       if (isOrganizer) {
         Object.assign(payload, {
           organization_name: orgName.trim(),
@@ -153,26 +153,19 @@ export default function SignUpScreen() {
           website: website.trim(),
         });
       }
-      const response = await fetch(`${API_BASE_URL}/auth/signup`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
 
-      const data = await response.json();
+      const res = await registerUser(payload as any);
 
-      if (response.ok && data.success) {
-        Alert.alert('Account Created!', 'Your TixYou account was successfully created. Please sign in.');
-        router.replace('/login/login');
-      } else {
-        // Fallback demo signup
-        Alert.alert('Account Created!', 'Your TixYou account was successfully created. Please sign in.');
-        router.replace('/login/login');
+      if (res.success) {
+        Alert.alert('Berhasil!', res.message || 'Akun TixYou berhasil dibuat. Silakan login.', [
+          {
+            text: 'Login Sekarang',
+            onPress: () => router.replace('/login/login'),
+          },
+        ]);
       }
-    } catch {
-      // Offline fallback
-      Alert.alert('Account Created (Offline Mode)', 'Your TixYou account was created. Please sign in.');
-      router.replace('/login/login');
+    } catch (error: any) {
+      Alert.alert('Registrasi Gagal', error.message || 'Terjadi kesalahan saat menghubungi server.');
     } finally {
       setLoading(false);
     }
